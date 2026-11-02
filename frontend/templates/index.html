@@ -1,0 +1,649 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <div class="mb-8">
+        <h2 class="text-3xl font-bold text-white tracking-tight">System Overview</h2>
+        <p class="text-gray-400">Explainable AI monitoring for network intrusions by <span class="text-blue-500 font-bold">Wardn</span>.</p>
+    </div>
+
+    <!-- Stats Bar -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-gray-900 border border-gray-800 p-6 rounded-2xl shadow-sm">
+            <p class="text-gray-400 text-sm font-medium uppercase tracking-wider">Total Scanned</p>
+            <h3 class="text-3xl font-bold text-white" id="totalScanned">0</h3>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 p-6 rounded-2xl border-l-4 border-l-red-500 shadow-sm">
+            <p class="text-gray-400 text-sm font-medium uppercase tracking-wider">Threats Detected</p>
+            <h3 class="text-3xl font-bold text-red-500" id="threatsDetected">0</h3>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 p-6 rounded-2xl border-l-4 border-l-green-500 shadow-sm">
+            <p class="text-gray-400 text-sm font-medium uppercase tracking-wider">Model Accuracy</p>
+            <h3 class="text-3xl font-bold text-green-400">99.99%</h3>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 p-6 rounded-2xl border-l-4 border-l-blue-500 shadow-sm">
+            <p class="text-gray-400 text-sm font-medium uppercase tracking-wider">Monitor Status</p>
+            <h3 class="text-xl font-bold mt-1" id="monitorStatusBadge">
+                <span class="text-gray-500">● IDLE</span>
+            </h3>
+        </div>
+    </div>
+
+    <!-- Live Monitor Panel -->
+    <div class="bg-gray-900 border border-gray-800 rounded-2xl shadow-xl mb-8 overflow-hidden">
+        <div class="flex items-center justify-between p-5 border-b border-gray-800">
+            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                <i data-lucide="activity" class="w-5 h-5 text-blue-500"></i>
+                Live Network Monitor
+            </h2>
+            <div class="flex items-center gap-3">
+                <div id="livePulse" class="hidden items-center gap-2 text-xs text-green-400 font-mono">
+                    <span class="relative flex h-2 w-2">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    LIVE
+                </div>
+                <button id="startMonitorBtn" onclick="startMonitor()"
+                    class="bg-green-600 hover:bg-green-500 text-white text-sm font-bold px-5 py-2 rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-green-900/20">
+                    <i data-lucide="play" class="w-4 h-4"></i> Start Monitoring
+                </button>
+                <button id="stopMonitorBtn" onclick="stopMonitor()"
+                    class="hidden bg-red-700 hover:bg-red-600 text-white text-sm font-bold px-5 py-2 rounded-xl flex items-center gap-2 transition-all">
+                    <i data-lucide="square" class="w-4 h-4"></i> Stop
+                </button>
+            </div>
+        </div>
+
+        <div class="overflow-hidden">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-gray-800/60 text-[10px] text-gray-500 uppercase font-bold tracking-widest">
+                    <tr>
+                        <th class="p-4">Time</th>
+                        <th class="p-4">Source</th>
+                        <th class="p-4">Detection</th>
+                        <th class="p-4">Confidence</th>
+                        <th class="p-4">Top Trigger Features</th>
+                        <th class="p-4"></th>
+                    </tr>
+                </thead>
+                <tbody id="liveBody" class="text-sm text-gray-300 divide-y divide-gray-800/50">
+                    <tr id="liveEmptyRow">
+                        <td colspan="6" class="text-center py-12 text-gray-600">
+                            <div class="flex flex-col items-center gap-2">
+                                <i data-lucide="wifi-off" class="w-8 h-8 opacity-30"></i>
+                                <span class="text-xs">Click "Start Monitoring" to begin live traffic analysis</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Manual Analysis + History -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-span-1 bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl h-fit">
+            <h2 class="text-xl font-bold mb-6 flex items-center gap-2 text-white">
+                <i data-lucide="terminal" class="text-blue-500 w-5 h-5"></i> Manual Analysis
+            </h2>
+            <form id="analysisForm" class="grid grid-cols-2 gap-4">
+                <div class="col-span-1">
+                    <label class="text-[10px] text-gray-500 uppercase font-black mb-1 block">Dest Port</label>
+                    <input type="number" id="Destination_Port" class="w-full bg-gray-800 border border-gray-700 p-2 rounded-lg text-white text-sm" value="80">
+                </div>
+                <div class="col-span-1">
+                    <label class="text-[10px] text-gray-500 uppercase font-black mb-1 block">Duration</label>
+                    <input type="number" id="duration" class="w-full bg-gray-800 border border-gray-700 p-2 rounded-lg text-white text-sm" value="0">
+                </div>
+                <div class="col-span-1">
+                    <label class="text-[10px] text-gray-500 uppercase font-black mb-1 block">Total Fwd Pkts</label>
+                    <input type="number" id="Total_Fwd_Packets" class="w-full bg-gray-800 border border-gray-700 p-2 rounded-lg text-white text-sm" value="1">
+                </div>
+                <div class="col-span-1">
+                    <label class="text-[10px] text-gray-500 uppercase font-black mb-1 block">Flow IAT Mean</label>
+                    <input type="number" id="Flow_IAT_Mean" class="w-full bg-gray-800 border border-gray-700 p-2 rounded-lg text-white text-sm" value="0">
+                </div>
+                <div class="col-span-2">
+                    <label class="text-[10px] text-gray-500 uppercase font-black mb-1 block">Init Win Bytes Fwd</label>
+                    <input type="number" id="Init_Win_bytes_forward" class="w-full bg-gray-800 border border-gray-700 p-2 rounded-lg text-white text-sm" value="255">
+                </div>
+                <button type="button" onclick="analyzeData()"
+                    class="col-span-2 mt-2 bg-blue-600 hover:bg-blue-500 py-3 rounded-xl font-bold text-white transition-all flex items-center justify-center gap-3 shadow-lg shadow-blue-900/20">
+                    <i data-lucide="zap" class="w-5 h-5"></i> Run Wardn AI
+                </button>
+            </form>
+        </div>
+
+        <div class="lg:col-span-2 space-y-8">
+            <div class="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl min-h-[450px] relative flex flex-col">
+                <div id="resultsPlaceholder" class="flex-1 flex flex-col items-center justify-center text-gray-600 text-center">
+                    <div class="bg-gray-800/50 p-6 rounded-full mb-4">
+                        <i data-lucide="shield-alert" class="w-12 h-12 opacity-30"></i>
+                    </div>
+                    <p class="max-w-xs text-sm">Awaiting network traffic data. Input values and click 'Run Wardn AI'.</p>
+                </div>
+
+                <div id="analysisContent" class="hidden flex-1 animate-in fade-in duration-500">
+                    <div class="flex justify-between items-start mb-6">
+                        <div>
+                            <p class="text-[10px] text-gray-500 uppercase font-black tracking-widest">Model Prediction</p>
+                            <h3 class="text-4xl font-black mt-1" id="resultLabel">--</h3>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] text-gray-500 uppercase font-black tracking-widest">Confidence</p>
+                            <span class="text-2xl font-mono text-blue-400 block mt-1" id="confidenceScore">0%</span>
+                        </div>
+                    </div>
+                    <div class="border-t border-gray-800 pt-6">
+                        <h4 class="text-xs text-gray-400 uppercase mb-4 tracking-widest font-bold flex items-center gap-2">
+                            <i data-lucide="info" class="w-4 h-4 text-blue-500"></i> Top Feature Impacts
+                        </h4>
+                        <div class="h-[250px] w-full">
+                            <canvas id="xaiChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analysis History -->
+            <div class="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl">
+                <h4 class="text-xs text-gray-400 uppercase mb-4 tracking-widest font-bold flex items-center gap-2">
+                    <i data-lucide="history" class="w-4 h-4 text-blue-500"></i> Analysis History
+                    <span class="ml-auto text-gray-600 normal-case font-normal text-[10px]">Click a row to see explanation</span>
+                </h4>
+                <div class="overflow-hidden rounded-xl border border-gray-800">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-gray-800/50 text-[10px] text-gray-500 uppercase font-bold">
+                            <tr>
+                                <th class="p-4">Time</th>
+                                <th class="p-4">Detection</th>
+                                <th class="p-4 text-right">Confidence</th>
+                                <th class="p-4 text-right"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyBody" class="text-sm text-gray-300 divide-y divide-gray-800"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Attack Explanation Side Panel ──────────────────────────────────── -->
+<div id="explanationOverlay"
+     onclick="closeExplanationPanel()"
+     class="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 opacity-0 pointer-events-none transition-opacity duration-300">
+</div>
+
+<div id="explanationPanel"
+     class="fixed top-0 right-0 h-full w-full max-w-sm bg-gray-950 border-l border-gray-800 shadow-2xl z-50
+            translate-x-full transition-transform duration-300 ease-out flex flex-col overflow-hidden">
+
+    <!-- Panel header -->
+    <div id="panelHeader" class="p-6 border-b border-gray-800 flex items-start justify-between gap-4">
+        <div class="flex items-center gap-3">
+            <div id="panelIconWrap" class="p-2.5 rounded-xl bg-gray-800">
+                <i id="panelIcon" data-lucide="shield" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <p class="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Attack Type</p>
+                <h3 id="panelTitle" class="text-xl font-black text-white mt-0.5">--</h3>
+            </div>
+        </div>
+        <button onclick="closeExplanationPanel()"
+                class="text-gray-600 hover:text-white transition-colors mt-1 flex-shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Scrollable body -->
+    <div class="flex-1 overflow-y-auto p-6 space-y-6">
+
+        <!-- Confidence badge -->
+        <div class="flex items-center justify-between bg-gray-900 border border-gray-800 rounded-xl px-4 py-3">
+            <span class="text-xs text-gray-400 uppercase tracking-wider font-bold">Confidence</span>
+            <span id="panelConfidence" class="font-mono text-blue-400 font-bold text-lg">--</span>
+        </div>
+
+        <!-- Description -->
+        <div>
+            <p class="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-2">What is this?</p>
+            <p id="panelDesc" class="text-gray-300 text-sm leading-relaxed"></p>
+        </div>
+
+        <!-- Divider -->
+        <div class="border-t border-gray-800"></div>
+
+        <!-- Severity + Recommended Action -->
+        <div>
+            <p class="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-3">Severity</p>
+            <div id="panelSeverityBar" class="w-full bg-gray-800 rounded-full h-2 mb-1">
+                <div id="panelSeverityFill" class="h-2 rounded-full transition-all duration-700" style="width:0%"></div>
+            </div>
+            <div class="flex justify-between text-[10px] text-gray-600 mt-1">
+                <span>Low</span><span>Critical</span>
+            </div>
+        </div>
+
+        <div>
+            <p class="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-2">Recommended Action</p>
+            <p id="panelAction" class="text-gray-300 text-sm leading-relaxed"></p>
+        </div>
+
+        <!-- Divider -->
+        <div class="border-t border-gray-800"></div>
+
+        <!-- SHAP Feature Impacts -->
+        <div>
+            <p class="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-3 flex items-center gap-2">
+                <i data-lucide="bar-chart-2" class="w-3.5 h-3.5 text-blue-500"></i>
+                Top Feature Impacts
+            </p>
+            <div id="panelFeatures" class="space-y-2.5"></div>
+        </div>
+
+        <!-- Timestamp -->
+        <div class="border-t border-gray-800 pt-4">
+            <p class="text-[10px] text-gray-600 font-mono">Recorded at <span id="panelTime">--</span></p>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Smooth panel entrance */
+    #explanationPanel.open { transform: translateX(0); }
+    #explanationOverlay.open { opacity: 1; pointer-events: auto; }
+
+    /* History row hover cue */
+    #historyBody tr { cursor: pointer; }
+    #historyBody tr:hover td { background-color: rgba(30,41,59,0.5); }
+
+    /* Feature bar animation */
+    @keyframes growBar { from { width: 0 } }
+    .feature-bar { animation: growBar 0.6s ease-out forwards; }
+</style>
+
+<script>
+    let myChart = null;
+    let scans = 0;
+    let threats = 0;
+    let eventSource = null;
+
+    // Stores the last explanation data per history row (keyed by row index)
+    const historyData = [];
+    // Stores live monitor event data for explanation panel
+    const liveData = [];
+
+    const ATTACK_DESCRIPTIONS = {
+        "BENIGN":      { color: "text-green-400",   icon: "shield-check",   desc: "Normal traffic — no threat detected.",                                                        severity: 5,  action: "No action required. Continue standard monitoring." },
+        "DoS":        { color: "text-red-500",      icon: "zap",            desc: "Denial of Service — single-source flood attack designed to exhaust server resources and cause downtime.",  severity: 95, action: "Block source IP at firewall level. Enable connection-rate limits and SYN cookies." },
+        "PortScan":    { color: "text-orange-400",   icon: "search",         desc: "Port Scan — attacker probing open ports to map the network and identify exploitable services.",                               severity: 45, action: "Block scanning source IP. Audit open ports and close unnecessary services." },
+        "BruteForce":  { color: "text-yellow-400",   icon: "key",            desc: "Brute Force — repeated automated login attempts designed to crack passwords or credentials.",                                  severity: 65, action: "Lock affected accounts. Enforce MFA. Add CAPTCHA and IP-based throttling." },
+        "Bot":         { color: "text-purple-400",   icon: "cpu",            desc: "Bot activity — automated traffic following command-and-control (C2) patterns, often part of a botnet.",                       severity: 70, action: "Isolate the affected host. Scan for malware. Block C2 server IPs." },
+        "WebAttack":   { color: "text-pink-400",     icon: "globe",          desc: "Web Attack — HTTP-layer exploit including SQL injection, Cross-Site Scripting (XSS), or path traversal.",                     severity: 75, action: "Enable WAF rules. Patch vulnerable endpoints. Review application logs." },
+        "Infiltration":{ color: "text-red-400",      icon: "log-in",         desc: "Infiltration — an attacker has breached the network perimeter and is moving laterally inside.",                              severity: 90, action: "Immediately isolate affected segment. Trigger incident response. Preserve forensic evidence." },
+        "Heartbleed":  { color: "text-red-600",      icon: "activity",       desc: "Heartbleed — CVE-2014-0160 OpenSSL memory leak that can expose private keys and sensitive data to an attacker.",             severity: 88, action: "Patch OpenSSL immediately. Revoke and reissue TLS certificates. Reset credentials." }
+    };
+
+    // ── Live Monitor ──────────────────────────────────────────────────────────
+    async function startMonitor() {
+        const res = await fetch('/monitor/start', { method: 'POST' });
+        const data = await res.json();
+        if (data.status === 'started') {
+            document.getElementById('startMonitorBtn').classList.add('hidden');
+            document.getElementById('stopMonitorBtn').classList.remove('hidden');
+            document.getElementById('livePulse').classList.remove('hidden');
+            document.getElementById('livePulse').classList.add('flex');
+            document.getElementById('monitorStatusBadge').innerHTML = '<span class="text-green-400">● MONITORING</span>';
+            subscribeToStream();
+        }
+    }
+
+    async function stopMonitor() {
+        await fetch('/monitor/stop', { method: 'POST' });
+        if (eventSource) { eventSource.close(); eventSource = null; }
+        document.getElementById('startMonitorBtn').classList.remove('hidden');
+        document.getElementById('stopMonitorBtn').classList.add('hidden');
+        document.getElementById('livePulse').classList.add('hidden');
+        document.getElementById('livePulse').classList.remove('flex');
+        document.getElementById('monitorStatusBadge').innerHTML = '<span class="text-gray-500">● IDLE</span>';
+    }
+
+    function subscribeToStream() {
+        if (eventSource) eventSource.close();
+        eventSource = new EventSource('/monitor/stream');
+        eventSource.onmessage = (e) => {
+            const event = JSON.parse(e.data);
+            if (event.type === 'connected' || event.type === 'stopped') return;
+            appendLiveRow(event);
+        };
+        eventSource.onerror = () => { console.warn('SSE connection lost — retrying...'); };
+    }
+
+    function appendLiveRow(event) {
+        const empty = document.getElementById('liveEmptyRow');
+        if (empty) empty.remove();
+
+        const liveBody = document.getElementById('liveBody');
+        const meta = ATTACK_DESCRIPTIONS[event.label] || ATTACK_DESCRIPTIONS['BENIGN'];
+
+        // Store in liveData array (unshift so index 0 = newest)
+        liveData.unshift({
+            label: event.label,
+            confidence: event.confidence,
+            time: event.time,
+            src: event.src,
+            explanation: event.top_features ? {
+                features: event.top_features.map(f => f.name),
+                impact: event.top_features.map(f => f.impact)
+            } : null
+        });
+        const liveIndex = 0;
+
+        // Re-stamp existing rows' button indices (+1 since we unshifted)
+        liveBody.querySelectorAll('tr[data-live-index]').forEach(r => {
+            const newIdx = parseInt(r.dataset.liveIndex) + 1;
+            r.dataset.liveIndex = newIdx;
+            const btn = r.querySelector('button.live-details-btn');
+            if (btn) btn.dataset.openIndex = newIdx;
+        });
+
+        const featurePills = (event.top_features || []).map(f => {
+            const dir = f.impact > 0 ? 'bg-blue-900/50 text-blue-300' : 'bg-red-900/50 text-red-300';
+            const arrow = f.impact > 0 ? '▲' : '▼';
+            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono ${dir}">
+                        ${arrow} ${f.name}
+                    </span>`;
+        }).join(' ');
+
+        const threatBg = event.is_threat ? 'bg-red-950/20 hover:bg-red-950/30' : 'hover:bg-gray-800/30';
+        const row = document.createElement('tr');
+        row.className = `${threatBg} transition-colors`;
+        row.dataset.liveIndex = 0;
+        row.innerHTML = `
+            <td class="p-4 text-gray-500 font-mono text-xs">${event.time}</td>
+            <td class="p-4 font-mono text-xs text-gray-400">${event.src}</td>
+            <td class="p-4">
+                <div class="flex flex-col gap-1">
+                    <span class="font-bold ${meta.color} text-sm">${event.label}</span>
+                    <span class="text-gray-500 text-[11px]">${meta.desc}</span>
+                </div>
+            </td>
+            <td class="p-4 font-mono text-blue-400 text-sm">${event.confidence}</td>
+            <td class="p-4"><div class="flex flex-wrap gap-1">${featurePills}</div></td>
+            <td class="p-4 text-right">
+                <button data-open-index="0"
+                    class="live-details-btn inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg
+                           bg-gray-800 border border-gray-700 text-gray-400 text-xs font-medium
+                           hover:bg-blue-600 hover:border-blue-500 hover:text-white
+                           transition-all duration-150 cursor-pointer whitespace-nowrap">
+                    <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    Details
+                </button>
+            </td>
+        `;
+
+        liveBody.insertAdjacentElement('afterbegin', row);
+
+        // Keep table at max 50 rows
+        const rows = liveBody.querySelectorAll('tr');
+        if (rows.length > 50) rows[rows.length - 1].remove();
+
+        scans++;
+        document.getElementById('totalScanned').innerText = scans;
+        if (event.is_threat) {
+            threats++;
+            document.getElementById('threatsDetected').innerText = threats;
+        }
+    }
+
+    // ── Manual Analysis ────────────────────────────────────────────────────
+    async function analyzeData() {
+        document.getElementById('resultsPlaceholder').classList.add('hidden');
+        document.getElementById('analysisContent').classList.remove('hidden');
+
+        const inputData = {
+            "Destination Port": parseInt(document.getElementById('Destination_Port').value),
+            "Flow Duration":    parseInt(document.getElementById('duration').value),
+            "Total Fwd Packets":parseInt(document.getElementById('Total_Fwd_Packets').value),
+            "Flow IAT Mean":    parseFloat(document.getElementById('Flow_IAT_Mean').value),
+            "Init_Win_bytes_forward": parseInt(document.getElementById('Init_Win_bytes_forward').value)
+        };
+
+        try {
+            const response = await fetch('/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(inputData)
+            });
+            const data = await response.json();
+            if (data.error) throw new Error(data.error);
+
+            const label = document.getElementById('resultLabel');
+            label.innerText = data.result;
+
+            scans++;
+            document.getElementById('totalScanned').innerText = scans;
+
+            const meta = ATTACK_DESCRIPTIONS[data.result] || ATTACK_DESCRIPTIONS['BENIGN'];
+            if (data.result !== 'BENIGN') {
+                threats++;
+                document.getElementById('threatsDetected').innerText = threats;
+            }
+            label.className = `${meta.color} text-4xl font-black mt-1`;
+            document.getElementById('confidenceScore').innerText = data.confidence;
+
+            // Store row data for the explanation panel
+            const rowTime = new Date().toLocaleTimeString();
+            historyData.unshift({
+                label: data.result,
+                confidence: data.confidence,
+                time: rowTime,
+                explanation: data.explanation
+            });
+
+            // Re-stamp data-index on all existing rows (they all shift +1)
+            const historyBody = document.getElementById('historyBody');
+            historyBody.querySelectorAll('tr[data-history-index]').forEach(r => {
+                r.dataset.historyIndex = parseInt(r.dataset.historyIndex) + 1;
+                r.querySelector('button[data-open-index]').dataset.openIndex =
+                    r.dataset.historyIndex;
+            });
+
+            // Build new row — button carries the index, no cloneNode needed
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-800/30 transition-colors group';
+            row.dataset.historyIndex = 0;
+            row.innerHTML = `
+                <td class="p-4 text-gray-500 font-mono text-xs">${rowTime}</td>
+                <td class="p-4 font-bold ${meta.color}">${data.result}</td>
+                <td class="p-4 text-right font-mono text-blue-400">${data.confidence}</td>
+                <td class="p-4 text-right">
+                    <button data-open-index="0"
+                        class="details-btn inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg
+                               bg-gray-800 border border-gray-700 text-gray-400 text-xs font-medium
+                               hover:bg-blue-600 hover:border-blue-500 hover:text-white
+                               transition-all duration-150 cursor-pointer">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+                            <line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                        Details
+                    </button>
+                </td>
+            `;
+            historyBody.insertAdjacentElement('afterbegin', row);
+            if (window.lucide) lucide.createIcons();
+
+            // XAI Chart
+            if (myChart) myChart.destroy();
+            const ctx = document.getElementById('xaiChart').getContext('2d');
+            const combined = data.explanation.features.map((f, i) => ({
+                name: f, val: data.explanation.impact[i]
+            })).sort((a, b) => Math.abs(b.val) - Math.abs(a.val)).slice(0, 5);
+
+            myChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: combined.map(c => c.name),
+                    datasets: [{
+                        data: combined.map(c => c.val),
+                        backgroundColor: combined.map(c => c.val > 0 ? '#3b82f6' : '#ef4444'),
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: '#1e293b' }, ticks: { color: '#94a3b8' } },
+                        y: { ticks: { color: '#f1f5f9', font: { size: 10 } } }
+                    }
+                }
+            });
+
+        } catch (error) {
+            alert("Analysis Error: " + error.message);
+        }
+    }
+
+    // ── Event delegation for Details buttons in history table ─────────────
+    // document.getElementById('historyBody').addEventListener('click', (e) => {
+    //     const btn = e.target.closest('button.details-btn');
+    //     if (!btn) return;
+    //     e.stopPropagation();
+    //     openExplanationPanel(historyData[parseInt(btn.dataset.openIndex)]);
+    // });
+    // ── NEW: click anywhere on row OR the button ──
+    document.getElementById('historyBody').addEventListener('click', (e) => {
+        // Check button first
+        const btn = e.target.closest('button.details-btn');
+        if (btn) {
+            e.stopPropagation();
+            openExplanationPanel(historyData[parseInt(btn.dataset.openIndex)]);
+            return;
+        }
+        // Click anywhere on the row
+        const row = e.target.closest('tr[data-history-index]');
+        if (row) {
+            openExplanationPanel(historyData[parseInt(row.dataset.historyIndex)]);
+        }
+    });
+
+    // ── Event delegation for Details buttons in live monitor table ─────────
+    document.getElementById('liveBody').addEventListener('click', (e) => {
+        const btn = e.target.closest('button.live-details-btn');
+        if (!btn) return;
+        e.stopPropagation();
+        openExplanationPanel(liveData[parseInt(btn.dataset.openIndex)]);
+    });
+
+    // ── Explanation Side Panel ─────────────────────────────────────────────
+    function openExplanationPanel(entry) {
+        if (!entry) return;
+
+        const meta = ATTACK_DESCRIPTIONS[entry.label] || ATTACK_DESCRIPTIONS['BENIGN'];
+
+        // Header color strip
+        const headerEl = document.getElementById('panelHeader');
+        headerEl.style.borderBottom = '';
+        const colorMap = {
+            'text-green-400':   ['#16a34a', '#052e16'],
+            'text-red-500':     ['#ef4444', '#2d0a0a'],
+            'text-red-400':     ['#f87171', '#2d0a0a'],
+            'text-red-600':     ['#dc2626', '#2d0a0a'],
+            'text-orange-400':  ['#fb923c', '#1c0f00'],
+            'text-orange-500':  ['#f97316', '#1c0f00'],
+            'text-yellow-400':  ['#facc15', '#1a1500'],
+            'text-purple-400':  ['#c084fc', '#1a0a2e'],
+            'text-pink-400':    ['#f472b6', '#2d0a1f'],
+        };
+        const [accentHex, bgHex] = colorMap[meta.color] || ['#3b82f6', '#0a1628'];
+        headerEl.style.background = `linear-gradient(135deg, ${bgHex} 0%, #030712 100%)`;
+        headerEl.style.borderBottom = `1px solid ${accentHex}30`;
+
+        // Icon
+        const iconEl = document.getElementById('panelIcon');
+        iconEl.setAttribute('data-lucide', meta.icon);
+        iconEl.style.color = accentHex;
+        document.getElementById('panelIconWrap').style.backgroundColor = `${accentHex}20`;
+        if (window.lucide) lucide.createIcons();
+
+        // Text fields
+        document.getElementById('panelTitle').innerText = entry.label;
+        document.getElementById('panelTitle').style.color = accentHex;
+        document.getElementById('panelConfidence').innerText = entry.confidence;
+        document.getElementById('panelDesc').innerText = meta.desc;
+        document.getElementById('panelAction').innerText = meta.action;
+        document.getElementById('panelTime').innerText = entry.time;
+
+        // Severity bar
+        const fill = document.getElementById('panelSeverityFill');
+        fill.style.width = '0%';
+        fill.style.backgroundColor = accentHex;
+        setTimeout(() => { fill.style.width = meta.severity + '%'; }, 50);
+
+        // Feature impacts
+        const featuresEl = document.getElementById('panelFeatures');
+        featuresEl.innerHTML = '';
+        if (entry.explanation && entry.explanation.features) {
+            // const combined = entry.explanation.features.map((f, i) => ({
+            //     name: f, val: entry.explanation.impact[i]
+            // })).sort((a, b) => Math.abs(b.val) - Math.abs(a.val)).slice(0, 5);
+
+            const combined = entry.explanation.features.map((f, i) => {
+                let val = entry.explanation.impact[i];
+                // Flatten nested arrays from SHAP (e.g. [[0.03]] → 0.03)
+                while (Array.isArray(val)) val = val[0];
+                return { name: f, val: parseFloat(val) || 0 };
+            }).sort((a, b) => Math.abs(b.val) - Math.abs(a.val)).slice(0, 5);
+
+            const maxVal = Math.max(...combined.map(c => Math.abs(c.val))) || 1;
+
+            combined.forEach((f, idx) => {
+                const pct = Math.round((Math.abs(f.val) / maxVal) * 100);
+                const isPos = f.val > 0;
+                const barColor = isPos ? '#3b82f6' : '#ef4444';
+                const labelColor = isPos ? 'text-blue-400' : 'text-red-400';
+                const arrow = isPos ? '▲' : '▼';
+
+                const item = document.createElement('div');
+                item.className = 'space-y-1';
+                item.style.animationDelay = `${idx * 80}ms`;
+                item.innerHTML = `
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-gray-300 font-mono truncate max-w-[180px]">${f.name}</span>
+                        <span class="${labelColor} font-mono font-bold text-[11px]">${arrow} ${f.val.toFixed(4)}</span>
+                    </div>
+                    <div class="w-full bg-gray-800 rounded-full h-1.5">
+                        <div class="feature-bar h-1.5 rounded-full" style="width:${pct}%; background:${barColor}; animation-delay:${idx * 80}ms"></div>
+                    </div>
+                `;
+                featuresEl.appendChild(item);
+            });
+        } else {
+            featuresEl.innerHTML = '<p class="text-gray-600 text-xs">No feature data available.</p>';
+        }
+
+        // Open panel
+        document.getElementById('explanationPanel').classList.add('open');
+        document.getElementById('explanationOverlay').classList.add('open');
+    }
+
+    function closeExplanationPanel() {
+        document.getElementById('explanationPanel').classList.remove('open');
+        document.getElementById('explanationOverlay').classList.remove('open');
+    }
+
+    // Close on Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeExplanationPanel();
+    });
+</script>
+{% endblock %}
